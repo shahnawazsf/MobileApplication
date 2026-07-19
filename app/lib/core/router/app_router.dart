@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart'; // ChangeNotifier
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Ref, Provider
-import 'package:go_router/go_router.dart'; // GoRouter, GoRoute
+import 'package:go_router/go_router.dart'; // GoRouter, GoRoute, ShellRoute
 import '../../features/auth/presentation/providers/auth_provider.dart'; // authProvider, drives the redirect
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/shell/presentation/screens/app_shell.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier { // bridges Riverpod state changes into GoRouter's refresh mechanism
   _AuthRefreshNotifier(Ref ref) {
@@ -34,9 +35,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
+      ShellRoute( // wraps every authenticated route in the persistent side-menu/top-bar chrome
+        builder: (context, state, child) => AppShell(
+          currentPath: state.matchedLocation,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          // Future authenticated routes (e.g. /profile, /settings) go here so
+          // they share AppShell's side menu/top bar — add a matching NavItem
+          // in nav_items.dart for each one.
+        ],
       ),
     ],
   );
