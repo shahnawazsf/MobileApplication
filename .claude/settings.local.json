@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter emulators *)",
+      "Bash(where adb *)",
+      "Bash(flutter create *)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"https://localhost:7161/swagger/index.html\" -UseBasicParsing -TimeoutSec 5; \"Status: $\\($r.StatusCode\\)\" } catch { \"FAILED: $\\($_.Exception.Message\\)\" })"
+    ]
+  }
+}
