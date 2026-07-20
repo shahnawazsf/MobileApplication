@@ -1,30 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/initials.dart';
-import '../../../../core/widgets/soft_card.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../shipments/domain/shipment.dart';
-import '../../../shipments/presentation/screens/shipment_detail_screen.dart';
-import '../../../shipments/presentation/widgets/shipment_widgets.dart';
+import '../../domain/shipment.dart';
+import '../widgets/logistics_widgets.dart';
 
-/// Operations dashboard — KPI grid + active containers, matching mockup 3a.
-class HomeScreen extends ConsumerWidget {
-  final List<Shipment> shipments;
-  const HomeScreen({super.key, this.shipments = const []});
+/// Operations home — KPI grid + active containers, matching mockup 3a.
+class LogisticsHomeScreen extends StatelessWidget {
+  final String userName;
+  final VoidCallback? onOpenShipment;
+
+  const LogisticsHomeScreen({
+    super.key,
+    this.userName = 'Ahmed Al-Rashid',
+    this.onOpenShipment,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).user;
-
-    void openShipment(Shipment s) => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ShipmentDetailScreen(shipment: s)),
-        );
-
+  Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
-        _header(context, user?.name),
+        _header(context),
         const SizedBox(height: 20),
         _kpiGrid(),
         const SizedBox(height: 20),
@@ -41,24 +36,15 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 12),
-        if (shipments.isEmpty)
-          Text('No active containers',
-              style: TextStyle(
-                  fontSize: 13.5,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.45)))
-        else
-          for (final s in shipments.take(2)) ...[
-            _containerCard(context, s, openShipment),
-            const SizedBox(height: 12),
-          ],
+        for (final s in demoShipments.take(2)) ...[
+          _containerCard(context, s),
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }
 
-  Widget _header(BuildContext context, String? userName) {
+  Widget _header(BuildContext context) {
     return Row(
       children: [
         Expanded(
@@ -72,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
                           .colorScheme
                           .onSurface
                           .withValues(alpha: 0.5))),
-              Text(userName ?? '',
+              Text(userName,
                   style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w600)),
             ],
@@ -89,8 +75,8 @@ class HomeScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
-          child: Text(initialsOf(userName),
-              style: const TextStyle(
+          child: const Text('AR',
+              style: TextStyle(
                   color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w600)),
@@ -136,13 +122,13 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _kpiGrid() {
     const items = [
-      (_Kpi('0', 'Active shipments', Icons.inventory_2_rounded,
+      (_Kpi('128', 'Active shipments', Icons.inventory_2_rounded,
           AppColors.accent)),
-      (_Kpi('0', 'In transit', Icons.local_shipping_rounded,
+      (_Kpi('46', 'In transit', Icons.local_shipping_rounded,
           AppColors.primary)),
-      (_Kpi('0', 'At customs', Icons.gavel_rounded, AppColors.warning)),
-      (_Kpi('0', 'Delivered today', Icons.task_alt_rounded,
-          AppColors.success)),
+      (_Kpi('12', 'At customs', Icons.gavel_rounded, Color(0xFFF59E0B))),
+      (_Kpi('31', 'Delivered today', Icons.task_alt_rounded,
+          Color(0xFF22C55E))),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -181,11 +167,10 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _containerCard(
-      BuildContext context, Shipment s, void Function(Shipment) onOpen) {
+  Widget _containerCard(BuildContext context, Shipment s) {
     return SoftCard(
       radius: 24,
-      onTap: () => onOpen(s),
+      onTap: onOpenShipment,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

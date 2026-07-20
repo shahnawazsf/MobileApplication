@@ -15,7 +15,7 @@ class NavItem {
 }
 
 // Every route wrapped in the ShellRoute (see app_router.dart) should have an
-// entry here so PremiumSideMenu can list and highlight it.
+// entry here so PremiumSideMenu and AppBottomNavBar can list and highlight it.
 const List<NavItem> navItems = [
   NavItem(
     icon: Icons.home_outlined,
@@ -23,6 +23,22 @@ const List<NavItem> navItems = [
     label: 'Home',
     path: '/home',
   ),
-  // Add Profile/Settings entries here once their routes exist, e.g.:
-  // NavItem(icon: Icons.person_outline, selectedIcon: Icons.person_rounded, label: 'Profile', path: '/profile'),
+  NavItem(
+    icon: Icons.inventory_2_outlined,
+    selectedIcon: Icons.inventory_2_rounded,
+    label: 'Shipments',
+    path: '/shipments',
+  ),
+  NavItem(
+    icon: Icons.notifications_outlined,
+    selectedIcon: Icons.notifications_rounded,
+    label: 'Alerts',
+    path: '/alerts',
+  ),
+  NavItem(
+    icon: Icons.person_outline,
+    selectedIcon: Icons.person_rounded,
+    label: 'Profile',
+    path: '/profile',
+  ),
 ];

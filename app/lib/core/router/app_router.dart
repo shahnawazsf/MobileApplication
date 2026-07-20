@@ -1,10 +1,15 @@
-import 'package:flutter/foundation.dart'; // ChangeNotifier
+import 'package:flutter/material.dart'; // Navigator, MaterialPageRoute
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Ref, Provider
 import 'package:go_router/go_router.dart'; // GoRouter, GoRoute, ShellRoute
 import '../../features/auth/presentation/providers/auth_provider.dart'; // authProvider, drives the redirect
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/notifications/presentation/screens/alerts_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
+import '../../features/shipments/presentation/screens/scan_screen.dart';
+import '../../features/shipments/presentation/screens/shipment_detail_screen.dart';
+import '../../features/shipments/presentation/screens/shipment_list_screen.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier { // bridges Riverpod state changes into GoRouter's refresh mechanism
   _AuthRefreshNotifier(Ref ref) {
@@ -45,9 +50,27 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/home',
             builder: (context, state) => const HomeScreen(),
           ),
-          // Future authenticated routes (e.g. /profile, /settings) go here so
-          // they share AppShell's side menu/top bar — add a matching NavItem
-          // in nav_items.dart for each one.
+          GoRoute(
+            path: '/shipments',
+            builder: (context, state) => ShipmentListScreen(
+              onOpen: (shipment) => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ShipmentDetailScreen(shipment: shipment),
+                ),
+              ),
+              onScan: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScanScreen()),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/alerts',
+            builder: (context, state) => const AlertsScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
         ],
       ),
     ],

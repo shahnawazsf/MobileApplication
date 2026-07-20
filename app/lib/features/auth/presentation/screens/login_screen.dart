@@ -64,6 +64,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ));
   }
 
+  void _showAlert(String title, String message) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(loginFormProvider); // rebuilds this screen whenever form fields change
@@ -71,12 +87,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider); // rebuilds on isLoading/user/error changes
     final theme = Theme.of(context);
 
-    ref.listen(authProvider, (previous, next) { // side effects (snackbars) belong in listen, not in build()
+    ref.listen(authProvider, (previous, next) { // side effects (snackbars/dialogs) belong in listen, not in build()
       if (next.error != null && next.error != previous?.error) { // only show a NEW error, not the same one again
-        _showSnack(next.error!, isError: true);
+        if (next.isCredentialsError) {
+          _showAlert('Login Failed, Invalid Credentials', 'Please check your User ID and Password and try again.'); // fixed copy — never show the backend's raw message text
+        } else {
+          _showSnack(next.error!, isError: true); // network/server errors — less disruptive toast
+        }
       }
       if (next.isAuthenticated && previous?.isAuthenticated != true) { // fires once, right as login succeeds
-        _showSnack('Welcome back, ${next.user!.name}!');
+        _showSnack('SDES Mobile Application, ${next.user!.name}!');
       }
     });
 
@@ -101,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0), // fades in while sliding up slightly
                     const SizedBox(height: 8),
                     Text(
-                      'Sign in to continue to your account',
+                      'Saudi Development & Export Service',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.65), // muted subtitle color
                       ),
@@ -310,7 +330,8 @@ class _Logo extends StatelessWidget { // the circular gradient app-icon placehol
           ),
         ],
       ),
-      child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 36), // placeholder mark — swap for a real app logo
+      padding: const EdgeInsets.all(14),
+      child: Image.asset('assets/images/logo.png', fit: BoxFit.contain), // brand mark
     ).animate().scaleXY(begin: 0.6, end: 1, duration: 500.ms, curve: Curves.easeOutBack); // pops in with a slight overshoot
   }
 }

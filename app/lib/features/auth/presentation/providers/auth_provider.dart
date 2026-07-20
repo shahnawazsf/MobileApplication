@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Provider/StateNotifierProvider machinery
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/biometric_service.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -18,16 +20,38 @@ class AuthState {
   final bool isLoading; // true while a login/logout call is in flight — drives spinners/disabled buttons
   final User? user; // null when signed out, populated after a successful login
   final String? error; // last error message, shown as a snackbar then not re-shown until it changes
+  final bool isCredentialsError; // true when `error` is specifically a wrong-userId/password rejection
 
-  const AuthState({this.isLoading = false, this.user, this.error});
+  const AuthState({this.isLoading = false, this.user, this.error, this.isCredentialsError = false});
 
   bool get isAuthenticated => user != null; // the single source of truth the router redirect reads
 
-  AuthState copyWith({bool? isLoading, User? user, String? error}) => AuthState(
+  AuthState copyWith({bool? isLoading, User? user, String? error, bool isCredentialsError = false}) => AuthState(
         isLoading: isLoading ?? this.isLoading,
         user: user ?? this.user,
         error: error, // deliberately NOT `error ?? this.error` — callers must pass null to clear a stale error
+        isCredentialsError: isCredentialsError,
       );
+}
+
+// Two shapes both mean "backend rejected the login" and should read as a
+// credentials error:
+//  - a bare ApiException, thrown directly by AuthRepository.login for a 200
+//    response with `success: false` (see auth_repository.dart);
+//  - a DioException wrapping an ApiException with statusCode 401 — what the
+//    real backend actually does for wrong userId/password (still a JSON
+//    `{success:false, message:...}` body, just delivered as a 401 instead of
+//    a 200, so Dio treats it as an error before AuthRepository's own
+//    success-check ever runs).
+// Any other status/network failure (500, connection error, etc.) is not a
+// credentials problem.
+(String message, bool isCredentialsError) _describe(Object e) {
+  if (e is ApiException) return (e.message, true);
+  if (e is DioException && e.error is ApiException) {
+    final api = e.error as ApiException;
+    return (api.message, api.statusCode == 401);
+  }
+  return (e.toString(), false);
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -50,7 +74,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       state = state.copyWith(isLoading: false, user: user); // success — AuthState.isAuthenticated flips true
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString()); // failure — surfaced via ref.listen in the UI
+      final (message, isCredentialsError) = _describe(e);
+      state = state.copyWith(isLoading: false, error: message, isCredentialsError: isCredentialsError); // failure — surfaced via ref.listen in the UI
     }
   }
 

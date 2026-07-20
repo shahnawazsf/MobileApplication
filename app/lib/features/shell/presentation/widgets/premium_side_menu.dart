@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/initials.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../nav_items.dart';
 
@@ -49,7 +50,7 @@ class PremiumSideMenu extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      _initials(user?.name),
+                      initialsOf(user?.name),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -124,12 +125,6 @@ class PremiumSideMenu extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _initials(String? name) {
-    if (name == null || name.trim().isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    return parts.take(2).map((p) => p[0].toUpperCase()).join();
   }
 }
 

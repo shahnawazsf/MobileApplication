@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/animated_gradient_background.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../shipments/presentation/screens/scan_screen.dart';
 import '../nav_items.dart';
+import '../widgets/bottom_nav_bar.dart';
 import '../widgets/premium_side_menu.dart';
 
-const _wideBreakpoint = 900.0; // above this width: permanent side rail; below: slide-in Drawer
+const _wideBreakpoint = 900.0; // above this width: permanent side rail; below: bottom nav bar
 
 class AppShell extends ConsumerWidget {
   final Widget child; // the active route's screen, supplied by ShellRoute
@@ -18,10 +20,8 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     final isWide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
-    final scaffoldKey = GlobalKey<ScaffoldState>();
 
     void select(String path) {
-      if (!isWide) scaffoldKey.currentState?.closeDrawer(); // close the Drawer before navigating on mobile
       if (path != currentPath) context.go(path);
     }
 
@@ -32,20 +32,6 @@ class AppShell extends ConsumerWidget {
         .label;
 
     return Scaffold(
-      key: scaffoldKey,
-      // Drawer only exists on narrow layouts — on wide layouts the same PremiumSideMenu
-      // is rendered permanently in the Row below instead.
-      drawer: isWide
-          ? null
-          : Drawer(
-              child: PremiumSideMenu(
-                user: user,
-                currentPath: currentPath,
-                onSelect: select,
-                onLogout: logout,
-              ),
-            ),
-      appBar: isWide ? null : AppBar(title: Text(title)),
       body: AnimatedGradientBackground( // same drifting-orb backdrop as the login screen
         child: SafeArea(
           child: Row(
@@ -72,6 +58,18 @@ class AppShell extends ConsumerWidget {
                         child: KeyedSubtree(key: ValueKey(currentPath), child: child),
                       ),
                     ),
+                    // Narrow layouts get the logistics-style bottom nav bar (with its
+                    // own scan FAB) instead of the wide layout's permanent side rail —
+                    // each screen carries its own title/header, so no AppBar is needed.
+                    if (!isWide)
+                      AppBottomNavBar(
+                        items: navItems,
+                        currentPath: currentPath,
+                        onSelect: select,
+                        onScan: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ScanScreen()),
+                        ),
+                      ),
                   ],
                 ),
               ),
