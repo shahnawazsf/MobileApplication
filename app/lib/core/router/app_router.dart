@@ -10,6 +10,7 @@ import '../../features/shell/presentation/screens/app_shell.dart';
 import '../../features/shipments/presentation/screens/scan_screen.dart';
 import '../../features/shipments/presentation/screens/shipment_detail_screen.dart';
 import '../../features/shipments/presentation/screens/shipment_list_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier { // bridges Riverpod state changes into GoRouter's refresh mechanism
   _AuthRefreshNotifier(Ref ref) {
@@ -25,17 +26,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _AuthRefreshNotifier(ref); // one instance for the lifetime of this GoRouter
 
   return GoRouter(
-    initialLocation: '/login', // first screen shown on cold start
+    initialLocation: '/splash', // first screen shown on cold start
     refreshListenable: refreshNotifier, // re-evaluates `redirect` below whenever this notifies
     redirect: (context, state) {
       final isAuthenticated = ref.read(authProvider).isAuthenticated;
+      final isSplash = state.matchedLocation == '/splash';
       final isLoggingIn = state.matchedLocation == '/login';
 
+      if (isSplash) return null; // let it run its own timer-driven navigation, untouched by the auth guard
       if (!isAuthenticated && !isLoggingIn) return '/login'; // guard: bounce signed-out users off protected routes
       if (isAuthenticated && isLoggingIn) return '/home'; // don't let a signed-in user sit on the login screen
       return null; // no redirect needed — proceed to the requested route
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),

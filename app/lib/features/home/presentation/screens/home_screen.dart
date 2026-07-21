@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/initials.dart';
 import '../../../../core/widgets/soft_card.dart';
+import '../../../auth/data/models/daily_container_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/providers/daily_container_provider.dart';
 import '../../../shipments/domain/shipment.dart';
 import '../../../shipments/presentation/screens/shipment_detail_screen.dart';
 import '../../../shipments/presentation/widgets/shipment_widgets.dart';
@@ -16,17 +18,59 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
+    final dailyContainersAsync = ref.watch(dailyContainerProvider);
 
     void openShipment(Shipment s) => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => ShipmentDetailScreen(shipment: s)),
         );
+
+    final dailyContainers = dailyContainersAsync.valueOrNull ?? const <DailyContainerModel>[];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
         _header(context, user?.name),
         const SizedBox(height: 20),
-        _kpiGrid(),
+        _kpiGrid(_buildKpis(dailyContainers)),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Daily container summary',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text('Live',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primary)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (dailyContainersAsync.isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (dailyContainersAsync.hasError)
+          Text(
+            dailyContainersAsync.error is Exception
+                ? dailyContainersAsync.error.toString()
+                : 'Unable to load daily container data right now.',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          )
+        else if (dailyContainers.isEmpty)
+          Text('No daily container data available',
+              style: TextStyle(
+                  fontSize: 13.5,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.45)))
+        else
+          for (final item in dailyContainers.take(5)) ...[
+            _dailyContainerRow(context, item),
+            const SizedBox(height: 12),
+          ],
         const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -134,16 +178,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _kpiGrid() {
-    const items = [
-      (_Kpi('0', 'Active shipments', Icons.inventory_2_rounded,
-          AppColors.accent)),
-      (_Kpi('0', 'In transit', Icons.local_shipping_rounded,
-          AppColors.primary)),
-      (_Kpi('0', 'At customs', Icons.gavel_rounded, AppColors.warning)),
-      (_Kpi('0', 'Delivered today', Icons.task_alt_rounded,
-          AppColors.success)),
-    ];
+  Widget _kpiGrid(List<_Kpi> items) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -153,6 +188,62 @@ class HomeScreen extends ConsumerWidget {
       childAspectRatio: 1.55,
       children: [for (final k in items) _kpiCard(k)],
     );
+  }
+
+  Widget _dailyContainerRow(BuildContext context, DailyContainerModel item) {
+    final dateLabel = item.actionDate != null
+        ? '${item.actionDate!.day}/${item.actionDate!.month}/${item.actionDate!.year}'
+        : 'N/A';
+
+    return SoftCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.actionDay ?? dateLabel,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dateLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('Recv: ${item.recvdQty?.toStringAsFixed(0) ?? '0'}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('Ship: ${item.shippedQty?.toStringAsFixed(0) ?? '0'}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_Kpi> _buildKpis(List<DailyContainerModel> items) {
+    final totalReceived = items.fold<double>(0, (sum, item) => sum + (item.recvdQty ?? 0));
+    final totalShipped = items.fold<double>(0, (sum, item) => sum + (item.shippedQty ?? 0));
+    final latest = items.isNotEmpty ? items.last : null;
+
+    return [
+      _Kpi(totalReceived.toStringAsFixed(0), 'Received today', Icons.inventory_2_rounded, AppColors.accent),
+      _Kpi(totalShipped.toStringAsFixed(0), 'Shipped today', Icons.local_shipping_rounded, AppColors.primary),
+      _Kpi(latest?.actionDay ?? '—', 'Last day', Icons.calendar_today_rounded, AppColors.warning),
+      _Kpi(items.isEmpty ? '0' : '${items.length}', 'Days loaded', Icons.task_alt_rounded, AppColors.success),
+    ];
   }
 
   Widget _kpiCard(_Kpi k) {

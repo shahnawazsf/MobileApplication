@@ -69,8 +69,10 @@ lib/
 │   │   └── app_theme.dart                      # Material 3 light/dark ThemeData
 │   └── widgets/
 │       ├── animated_gradient_background.dart   # drifting blurred gradient orbs
+│       ├── brand_logo.dart                     # circular gradient app-icon mark — login + splash share this
 │       ├── glass_card.dart                     # BackdropFilter glassmorphism card
 │       ├── gradient_button.dart                # primary CTA, press/loading animation
+│       ├── loading_indicator.dart              # shared branded spinner (splash, list refreshes, etc.)
 │       ├── premium_text_field.dart             # floating-label field w/ validation
 │       ├── social_login_button.dart            # shared glass social button shell
 │       └── brand_glyphs.dart                   # Google/Apple/Microsoft placeholder marks
@@ -90,6 +92,10 @@ lib/
     │       │   └── login_form_provider.dart    # form field state + validation
     │       └── screens/
     │           └── login_screen.dart           # the premium login UI
+    ├── splash/
+    │   └── presentation/
+    │       └── screens/
+    │           └── splash_screen.dart          # first screen on cold start — see §7.7
     └── home/
         └── presentation/
             └── screens/
@@ -187,10 +193,23 @@ Reusable, theme-aware building blocks used by every auth-style screen:
 - `animated_gradient_background.dart` — a looping `AnimationController` drifts three
   `RadialGradient` orbs behind the content (cheap alternative to a real blurred
   bitmap — no `BackdropFilter` cost paid every frame for the backdrop itself).
+  **The loop never stops** (`..repeat()`, no reverse) — a widget test that pumps
+  this can't use `pumpAndSettle()` (see `test/widget_test.dart` and
+  `docs/fixes/widget-test-pumpandsettle-timeout.md`); pump explicit durations
+  instead.
+- `brand_logo.dart` — the circular gradient app-icon mark (`BrandLogo`), extracted
+  out of the login screen so the splash screen (§7.7) can show the exact same
+  branding at a different `size`.
 - `glass_card.dart` — the actual glassmorphism: `BackdropFilter(ImageFilter.blur)`
   inside a `ClipRRect`, translucent fill + border from `AppColors.glassFill/Border`.
 - `gradient_button.dart` — primary CTA: gradient fill, press-scale animation,
-  `AnimatedSwitcher` between label and spinner for the loading state.
+  `AnimatedSwitcher` between label and spinner for the loading state. Rolls its
+  own spinner rather than `loading_indicator.dart` (needs a fixed white color for
+  its gradient fill plus an `AnimatedSwitcher` key) — see that file's doc comment.
+- `loading_indicator.dart` — `LoadingIndicator`, the shared branded spinner for
+  everywhere else that needs one (splash screen today; list refreshes etc. later).
+  Wraps `CircularProgressIndicator` with `AppColors.primary` and a size-scaled
+  stroke width so every "still loading" spot in the app looks the same.
 - `premium_text_field.dart` — floating label via `InputDecoration`, leading icon,
   optional suffix (used for the password visibility toggle), `errorText` wired to
   external validation state.
@@ -220,6 +239,12 @@ Biometrics requires platform wiring — already done in this repo:
 that calls `notifyListeners()` whenever `ref.listen(authProvider, ...)` sees the
 auth state flip) passed as `refreshListenable`. Unauthenticated users get bounced to
 `/login`; authenticated users hitting `/login` get bounced to `/home`.
+
+`initialLocation` is `/splash`, not `/login` — `redirect` explicitly lets
+`/splash` through untouched (`if (isSplash) return null;`) before the
+authenticated/unauthenticated checks run, otherwise the auth guard would bounce
+a signed-out cold start straight to `/login` before the splash screen ever got
+to show anything. See §7.7.
 
 ## 7. Auth feature
 
@@ -269,8 +294,13 @@ Requires code generation — see §9.
 
 - Provider plumbing: `secureStorageProvider` → `dioClientProvider` →
   `authRepositoryProvider`, plus `biometricServiceProvider`.
-- `AuthState { isLoading, user, error }` with `isAuthenticated` getter (drives the
-  router redirect).
+- `AuthState { isLoading, user, error, isCredentialsError }` with `isAuthenticated`
+  getter (drives the router redirect). `isCredentialsError` is set by the
+  `_describe()` helper (bottom of this file) so `login_screen.dart` can tell a
+  wrong-userId/password rejection apart from a network/server failure — see
+  `docs/fixes/wrong-credentials-alert-dialog.md` for why that's not as simple
+  as "did `AuthRepository.login` throw an `ApiException`" (the real backend
+  signals bad credentials via HTTP 401, not a 200 + `success:false` body).
 - `AuthNotifier`: `login()`, `loginWithProvider()`, `loginWithBiometrics()` (re-auths
   against an already-stored token — biometrics unlock a session, they don't replace
   the first password login), `logout()`.
@@ -298,8 +328,31 @@ The "OR CONTINUE WITH" divider and the `SocialLoginButton` row are commented out
 (`brand_glyphs.dart`, `social_login_button.dart`, `auth_repository.dart` for
 `SocialProvider`) are commented out alongside them to keep `flutter analyze` clean.
 
-`ref.listen(authProvider, ...)` drives snackbars for login errors and success —
-side effects live in `listen`, not in `build()`.
+`ref.listen(authProvider, ...)` drives login feedback — side effects live in
+`listen`, not in `build()`. Wrong userId/password (`next.isCredentialsError`)
+shows a modal `AlertDialog` with fixed copy (never the backend's raw
+`next.error` message — see `docs/fixes/wrong-credentials-alert-dialog.md`);
+every other error (network unreachable, server error) falls back to the
+existing snackbar, which is less disruptive for a transient failure. A
+successful login also shows a snackbar.
+
+### 7.7 `lib/features/splash/presentation/screens/splash_screen.dart`
+
+First screen on cold start (`initialLocation: '/splash'` in `app_router.dart`,
+§6.7). Same visual language as the login screen — `AnimatedGradientBackground`
+behind a centered `BrandLogo(size: 96)`, app name/subtitle faded in with
+`flutter_animate`, and a `LoadingIndicator` — held for a fixed
+`Duration(seconds: 2)` via `Future.delayed` in `initState`, then
+`context.go('/login')`.
+
+This is **not** a session-restore gate. `SecureStorage.readToken()` /
+`readRememberMe()` already exist (used today only by the biometric-unlock
+flow), but the backend doesn't issue a durable bearer token on login yet
+(§7.2), so there's nothing meaningful to silently check here — the delay is
+purely a branded pause before landing on `/login`, same destination
+`initialLocation` pointed at before this screen existed. Revisit this once
+the backend issues real tokens: check for one here and route straight to
+`/home` when present instead of always going to `/login`.
 
 ## 8. Home feature (placeholder)
 
@@ -376,6 +429,10 @@ machine).
       remove the `if (loginResponse.token != null)` guard in `AuthRepository.login`.
 - [ ] Add token refresh handling in `DioClient` (401 interceptor) once tokens
       exist.
+- [ ] Once tokens exist, make `splash_screen.dart` actually check
+      `SecureStorage.readToken()`/`readRememberMe()` and route straight to
+      `/home` when a session should be restored, instead of always landing on
+      `/login` after its fixed 2s delay.
 - [ ] Wire real OAuth for Google/Apple/Microsoft (client IDs, backend token
       exchange) and replace `AuthRepository.loginWithProvider`'s `UnimplementedError`.
 - [ ] Implement `/auth/forgot-password` flow (`login_screen.dart`'s "Forgot
