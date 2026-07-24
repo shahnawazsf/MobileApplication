@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Lightweight brand glyphs so social login buttons don't need bundled logo
 /// assets. Swap for official SVG/PNG brand marks before shipping.
+// StatelessWidget: has no mutable state of its own — it just describes UI from its constructor inputs and rebuilds only when those inputs change.
 class GoogleGlyph extends StatelessWidget {
   const GoogleGlyph({super.key});
 
@@ -16,6 +17,7 @@ class GoogleGlyph extends StatelessWidget {
       );
 }
 
+/// Apple logo glyph for the (currently unused) Apple sign-in button.
 class AppleGlyph extends StatelessWidget {
   const AppleGlyph({super.key});
 
@@ -27,6 +29,8 @@ class AppleGlyph extends StatelessWidget {
       );
 }
 
+/// Microsoft logo glyph, hand-drawn as four colored squares since there's no
+/// bundled image asset for it.
 class MicrosoftGlyph extends StatelessWidget {
   const MicrosoftGlyph({super.key});
 

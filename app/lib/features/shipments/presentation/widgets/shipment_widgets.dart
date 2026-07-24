@@ -12,8 +12,8 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
+        color: status.color.withValues(alpha: 0.15), // faint tint of the status color as background
+        borderRadius: BorderRadius.circular(999), // a radius this large on a short box yields a fully-rounded pill
       ),
       child: Text(
         status.label,
@@ -44,6 +44,8 @@ class RouteProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // dim the destination label a bit more in dark mode so it reads as
+    // secondary text against the darker background
     final muted = Theme.of(context).brightness == Brightness.dark
         ? Colors.white.withValues(alpha: 0.6)
         : const Color(0x99000000);
@@ -57,11 +59,14 @@ class RouteProgress extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(2), // rounds the progress bar's ends
             child: LinearProgressIndicator(
-              value: progress,
+              value: progress, // fixed 0..1 fill amount (not an indeterminate/loading spinner)
               minHeight: 3,
-              backgroundColor: color.withValues(alpha: 0.15),
+              backgroundColor: color.withValues(alpha: 0.15), // unfilled track color
+              // AlwaysStoppedAnimation wraps a plain value as an Animation so it
+              // can be passed where an animated color is expected, without
+              // actually animating — the bar's fill color stays constant.
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),

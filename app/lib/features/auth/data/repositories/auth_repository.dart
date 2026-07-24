@@ -6,6 +6,10 @@ import '../models/login_response_model.dart'; // JSON shape of the /Auth/login r
 
 enum SocialProvider { google, apple, microsoft } // supported (currently unimplemented) OAuth providers
 
+/// The single place that talks to the backend's auth endpoints and to
+/// secure storage — AuthNotifier calls into this rather than using DioClient
+/// or SecureStorage directly, keeping HTTP/storage details out of the
+/// presentation layer.
 class AuthRepository {
   final DioClient _client; // HTTP client for talking to the backend
   final SecureStorage _secureStorage; // where the token/remember-me flag live

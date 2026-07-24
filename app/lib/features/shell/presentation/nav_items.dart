@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+/// Describes one destination in the app's primary navigation (side menu and
+/// bottom nav bar both render from this same shape).
 class NavItem {
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  final String path;
+  final IconData icon; // outline icon shown when this item is NOT the active route
+  final IconData selectedIcon; // filled/rounded icon shown when this item IS the active route
+  final String label; // text shown next to/under the icon
+  final String path; // go_router route path this item navigates to, e.g. '/home'
 
   const NavItem({
     required this.icon,

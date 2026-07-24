@@ -3,6 +3,9 @@ import '../config/env.dart'; // backend base URL
 import '../storage/secure_storage.dart'; // where the bearer token is read from
 import 'api_exception.dart'; // wraps raw Dio errors into a UI-friendly message
 
+/// Wraps a [Dio] HTTP client pre-configured with the API base URL, timeouts,
+/// and interceptors (below) that attach the auth token and normalize errors
+/// — so every repository shares the same setup instead of repeating it.
 class DioClient {
   final Dio dio; // the configured client every repository sends requests through
   final SecureStorage _secureStorage; // used by the request interceptor to attach the token
@@ -13,6 +16,9 @@ class DioClient {
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         )) {
+    // An interceptor is a hook Dio runs for every request/response, useful
+    // for cross-cutting concerns (auth headers, logging, error shaping) that
+    // would otherwise need repeating at every call site.
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async { // runs before every outgoing request
         final token = await _secureStorage.readToken();

@@ -1,3 +1,9 @@
+/// The signed-in user's identity as the rest of the app consumes it.
+///
+/// This is a "domain entity" — a plain, immutable data class that describes
+/// what a User *means* to this app, independent of how the backend happens
+/// to shape its JSON. AuthRepository is responsible for converting the raw
+/// API response (see LoginResponseModel) into one of these.
 class User {
   // Login form's typed user ID — not returned by the backend, threaded in by AuthRepository
   final String id;
@@ -10,6 +16,9 @@ class User {
   // Backend's "userDesc" — human-readable role description, e.g. "Administrator"
   final String description;
 
+  // `const` constructor: since every field is `final`, instances can be
+  // built at compile time and are safe to share/compare without worrying
+  // about their fields changing later.
   const User({
     required this.id,
     required this.name,

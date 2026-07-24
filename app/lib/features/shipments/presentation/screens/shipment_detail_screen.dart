@@ -11,19 +11,20 @@ class ShipmentDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = shipment;
+    final s = shipment; // local alias so the rest of build() reads shorter
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent, // lets the app-wide gradient background show through
       body: SafeArea(
         child: Column(
           children: [
-            _appBar(context, s),
+            _appBar(context, s), // back button, reference/B-L, share button
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
                 children: [
-                  _summaryCard(s),
+                  _summaryCard(s), // status icon, container/cargo, route, status chip
                   const SizedBox(height: 14),
+                  // ETA + port dwell time stat tiles
                   Row(
                     children: [
                       Expanded(
@@ -39,18 +40,20 @@ class ShipmentDetailScreen extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
+                  // vertical timeline: one row per journey step, in order
                   for (int i = 0; i < s.journey.length; i++)
                     _timelineStep(context, s, i),
                 ],
               ),
             ),
-            _actions(context),
+            _actions(context), // bottom bar: document icon + "Track live" CTA
           ],
         ),
       ),
     );
   }
 
+  /// Top bar: back button, shipment reference + bill of lading, share button.
   Widget _appBar(BuildContext context, Shipment s) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
@@ -86,6 +89,7 @@ class ShipmentDetailScreen extends StatelessWidget {
     );
   }
 
+  /// Header card: status icon, container + cargo summary, route, status chip.
   Widget _summaryCard(Shipment s) {
     return SoftCard(
       radius: 24,
@@ -105,6 +109,8 @@ class ShipmentDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // cargo can hold extra "· detail" segments; only the first
+                // part before the "·" is shown here to keep the line short
                 Text('${s.container} · ${s.cargo.split('·').first.trim()}',
                     style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.w600)),
@@ -120,6 +126,8 @@ class ShipmentDetailScreen extends StatelessWidget {
     );
   }
 
+  /// Small labeled stat tile (e.g. ETA, dwell time) reused for the two
+  /// summary numbers under the header card.
   Widget _stat(String label, String value, {Color? accent}) {
     return SoftCard(
       radius: 20,
@@ -140,9 +148,12 @@ class ShipmentDetailScreen extends StatelessWidget {
     );
   }
 
+  /// One row of the vertical journey timeline: a status dot/connector line
+  /// on the left, step title + subtitle (and duty box, if relevant) on the right.
   Widget _timelineStep(BuildContext context, Shipment s, int i) {
     final step = s.journey[i];
-    final last = i == s.journey.length - 1;
+    final last = i == s.journey.length - 1; // last step has no connector line below it
+    // three-way ternary chain: done (green) > active (amber) > upcoming (grey)
     final Color dotColor = step.done
         ? const Color(0xFF16A34A)
         : step.active
@@ -154,6 +165,9 @@ class ShipmentDetailScreen extends StatelessWidget {
             ? Icons.pending_rounded
             : Icons.radio_button_unchecked_rounded;
 
+    // IntrinsicHeight forces the Row's children to all be as tall as the
+    // tallest one — needed here so the vertical connector line (in an
+    // Expanded) stretches to match the text column's natural height.
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,6 +213,10 @@ class ShipmentDetailScreen extends StatelessWidget {
     );
   }
 
+  /// Highlighted box shown under the active journey step when customs duty
+  /// is still owed — displays the amount (SAR = Saudi Riyal) and a payment CTA.
+  /// SADAD is the Saudi government online bill-payment platform (domain
+  /// term, flag for review).
   Widget _dutyBox(double amount) {
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -219,7 +237,7 @@ class ShipmentDetailScreen extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFFB45309))),
-              Text('SAR ${amount.toStringAsFixed(0)}',
+              Text('SAR ${amount.toStringAsFixed(0)}', // amount rounded to whole riyals
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700)),
             ],
@@ -244,6 +262,8 @@ class ShipmentDetailScreen extends StatelessWidget {
     );
   }
 
+  /// Bottom action bar: a document/paperwork shortcut plus the primary
+  /// "Track live" call-to-action button.
   Widget _actions(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -265,7 +285,7 @@ class ShipmentDetailScreen extends StatelessWidget {
                     const LinearGradient(colors: AppColors.primaryGradient),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
-                  BoxShadow(
+                  BoxShadow( // soft glow beneath the button to lift it off the page
                     color: AppColors.primary.withValues(alpha: 0.3),
                     blurRadius: 24,
                     offset: const Offset(0, 12),

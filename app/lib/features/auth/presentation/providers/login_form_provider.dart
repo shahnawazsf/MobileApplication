@@ -1,5 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Everything the login form's UI needs to render itself: the current field
+/// values, whether each field has been "touched" (so errors don't appear
+/// before the user has had a chance to type), and small UI toggles like
+/// password-obscuring. Immutable — every change produces a brand-new
+/// instance via [copyWith] rather than mutating this one in place.
 class LoginFormState {
   final String userId; // raw text currently in the User ID field
   final String password; // raw text currently in the Password field
@@ -38,6 +43,9 @@ class LoginFormState {
   // gates whether _submit() in login_screen.dart actually calls the login API
   bool get isValid => _userIdRegex.hasMatch(userId) && password.isNotEmpty;
 
+  // copyWith: returns a new LoginFormState with the same field values as
+  // this one, except any fields explicitly passed in below — the standard
+  // way to "update" an immutable object in Dart/Flutter.
   LoginFormState copyWith({
     String? userId,
     String? password,
@@ -56,6 +64,11 @@ class LoginFormState {
       );
 }
 
+/// A [StateNotifier] owns one piece of state (here, [LoginFormState]) behind
+/// a `state` property. Widgets that `watch` [loginFormProvider] rebuild
+/// automatically every time `state` is reassigned, so each method below just
+/// swaps in a new state via [LoginFormState.copyWith] instead of mutating
+/// fields directly.
 class LoginFormNotifier extends StateNotifier<LoginFormState> {
   LoginFormNotifier() : super(const LoginFormState()); // starts blank/untouched
 
@@ -71,6 +84,9 @@ class LoginFormNotifier extends StateNotifier<LoginFormState> {
   void toggleRememberMe() => state = state.copyWith(rememberMe: !state.rememberMe);
 }
 
+/// The Riverpod provider the login screen watches/reads to get the
+/// [LoginFormNotifier] (to call its methods) and the current
+/// [LoginFormState] (to render field values/errors).
 final loginFormProvider = // .autoDispose resets form state when the login screen is left and re-entered
     StateNotifierProvider.autoDispose<LoginFormNotifier, LoginFormState>(
   (ref) => LoginFormNotifier(),

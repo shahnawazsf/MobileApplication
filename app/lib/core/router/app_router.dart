@@ -11,6 +11,10 @@ import '../../features/shipments/presentation/screens/scan_screen.dart';
 import '../../features/shipments/presentation/screens/shipment_detail_screen.dart';
 import '../../features/shipments/presentation/screens/shipment_list_screen.dart';
 
+// ChangeNotifier is Flutter's basic "call notifyListeners() to tell
+// listeners something changed" class; GoRouter's `refreshListenable` expects
+// one, so this small adapter is how a Riverpod state change (authProvider)
+// gets translated into a signal GoRouter understands.
 class _AuthRefreshNotifier extends ChangeNotifier { // bridges Riverpod state changes into GoRouter's refresh mechanism
   _AuthRefreshNotifier(Ref ref) {
     ref.listen(authProvider, (previous, next) { // fires whenever AuthState changes
@@ -21,6 +25,8 @@ class _AuthRefreshNotifier extends ChangeNotifier { // bridges Riverpod state ch
   }
 }
 
+/// Builds the app's single [GoRouter] instance: the route table plus the
+/// sign-in/sign-out redirect guard that runs before every navigation.
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _AuthRefreshNotifier(ref); // one instance for the lifetime of this GoRouter
 

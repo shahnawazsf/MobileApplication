@@ -10,7 +10,9 @@ import '../widgets/premium_side_menu.dart';
 
 const _wideBreakpoint = 900.0; // above this width: permanent side rail; below: bottom nav bar
 
-class AppShell extends ConsumerWidget {
+/// Persistent chrome (side menu or bottom nav bar + optional title) wrapped
+/// around every authenticated route by the router's ShellRoute.
+class AppShell extends ConsumerWidget { // ConsumerWidget (vs plain StatelessWidget) gives build() a WidgetRef so it can read Riverpod providers
   final Widget child; // the active route's screen, supplied by ShellRoute
   final String currentPath; // state.matchedLocation from the router, drives the highlighted nav item
 
@@ -18,15 +20,17 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).user;
-    final isWide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+    final user = ref.watch(authProvider).user; // ref.watch subscribes: this widget rebuilds whenever authProvider's state changes
+    final isWide = MediaQuery.sizeOf(context).width >= _wideBreakpoint; // MediaQuery exposes the screen's size/metrics, used here to pick a layout
 
     void select(String path) {
       if (path != currentPath) context.go(path);
     }
 
-    void logout() => ref.read(authProvider.notifier).logout(); // router redirect sends the user back to /login
+    void logout() => ref.read(authProvider.notifier).logout(); // ref.read (no subscription) — one-off call, not something to rebuild on; router redirect sends the user back to /login
 
+    // Look up the current route's display label; fall back to the first item
+    // rather than crashing if currentPath doesn't match any known NavItem.
     final title = navItems
         .firstWhere((item) => item.path == currentPath, orElse: () => navItems.first)
         .label;
@@ -36,7 +40,7 @@ class AppShell extends ConsumerWidget {
         child: SafeArea(
           child: Row(
             children: [
-              if (isWide)
+              if (isWide) // conditional child: `if` inside a widget list only includes the widget when true, no else means "nothing" otherwise
                 PremiumSideMenu(
                   user: user,
                   currentPath: currentPath,
@@ -53,6 +57,9 @@ class AppShell extends ConsumerWidget {
                         child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
                       ),
                     Expanded(
+                      // AnimatedSwitcher cross-fades between old/new child whenever its key changes;
+                      // KeyedSubtree gives `child` a key derived from currentPath so switching routes
+                      // (even to a widget of the same runtime type) is recognized as a "new" child and animates.
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: KeyedSubtree(key: ValueKey(currentPath), child: child),

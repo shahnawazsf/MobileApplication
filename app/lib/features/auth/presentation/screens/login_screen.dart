@@ -12,6 +12,9 @@ import '../../../../core/widgets/premium_text_field.dart';
 import '../providers/auth_provider.dart';
 import '../providers/login_form_provider.dart';
 
+/// The initial screen for signed-out users — a form that reads/writes
+/// [loginFormProvider] for field state/validation and calls [authProvider]
+/// to actually attempt sign-in.
 class LoginScreen extends ConsumerStatefulWidget { // ConsumerStatefulWidget: needs both `ref` and local State
   const LoginScreen({super.key});
 

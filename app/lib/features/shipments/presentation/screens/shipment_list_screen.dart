@@ -5,10 +5,12 @@ import '../../domain/shipment.dart';
 import '../widgets/shipment_widgets.dart';
 
 /// Shipments list with search + type filters, matching mockup 3b.
+// StatefulWidget: this screen needs mutable state (which filter chip is
+// selected) that survives across rebuilds — a StatelessWidget can't hold that.
 class ShipmentListScreen extends StatefulWidget {
   final List<Shipment> shipments;
-  final void Function(Shipment)? onOpen;
-  final VoidCallback? onScan;
+  final void Function(Shipment)? onOpen; // called when a row is tapped, to navigate to its detail screen
+  final VoidCallback? onScan; // called when the scan icon is tapped, to open the scanner
   const ShipmentListScreen({
     super.key,
     this.shipments = const [],
@@ -20,11 +22,16 @@ class ShipmentListScreen extends StatefulWidget {
   State<ShipmentListScreen> createState() => _ShipmentListScreenState();
 }
 
+// The State object paired with ShipmentListScreen — holds the currently
+// selected filter and rebuilds the widget tree whenever it changes.
 class _ShipmentListScreenState extends State<ShipmentListScreen> {
-  static const _filters = ['All', 'Ocean', 'Customs', 'Road'];
-  int _filter = 0;
+  static const _filters = ['All', 'Ocean', 'Customs', 'Road']; // filter chip labels, index-aligned with selection
+  int _filter = 0; // index into _filters for the currently selected chip
 
+  /// Shipments matching the currently selected filter chip.
   List<Shipment> get _visible {
+    // switch expression: picks the filtered list based on the selected
+    // filter's label; `_` is the default/fallback branch (any other value).
     return switch (_filters[_filter]) {
       'Ocean' => widget.shipments
           .where((s) => s.status == ShipmentStatus.onVessel)
@@ -35,16 +42,17 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
       'Road' => widget.shipments
           .where((s) => s.status == ShipmentStatus.inTransit)
           .toList(),
-      _ => widget.shipments,
+      _ => widget.shipments, // 'All' (or anything unrecognized): no filtering
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final onSurface = Theme.of(context).colorScheme.onSurface; // base text/icon color for the current theme
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // title row: "Shipments" heading + filter/tune icon button
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
           child: Row(
@@ -61,6 +69,7 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
             ],
           ),
         ),
+        // search bar with a scan-icon shortcut into the scanner screen
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
           child: SoftCard(
@@ -77,6 +86,7 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
                           fontSize: 13.5,
                           color: onSurface.withValues(alpha: 0.4))),
                 ),
+                // GestureDetector makes an otherwise-static icon tappable.
                 GestureDetector(
                   onTap: widget.onScan,
                   child: const Icon(Icons.qr_code_scanner_rounded,
@@ -86,9 +96,12 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
             ),
           ),
         ),
+        // horizontally scrolling row of filter chips
         SizedBox(
           height: 60,
           child: ListView.separated(
+            // ListView.separated: like ListView.builder but also builds a
+            // separator widget between each pair of items (here, spacing).
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
             itemCount: _filters.length,
@@ -96,6 +109,7 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
             itemBuilder: (_, i) => _filterChip(i),
           ),
         ),
+        // shipment rows for the active filter, or an empty-state message
         Expanded(
           child: _visible.isEmpty
               ? Center(
@@ -115,9 +129,12 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
     );
   }
 
+  /// One tappable filter chip ("All", "Ocean", "Customs", "Road").
   Widget _filterChip(int i) {
     final selected = i == _filter;
     return GestureDetector(
+      // setState tells Flutter this widget's state changed and it needs to
+      // rebuild — here, switching the selected filter index.
       onTap: () => setState(() => _filter = i),
       child: Container(
         alignment: Alignment.center,
@@ -133,6 +150,7 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
               : Border.all(color: Colors.white.withValues(alpha: 0.9)),
         ),
         child: Text(
+          // the "All" chip also shows the total shipment count
           i == 0 ? 'All · ${widget.shipments.length}' : _filters[i],
           style: TextStyle(
             fontSize: 12,
@@ -144,6 +162,8 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
     );
   }
 
+  /// One row in the shipment list: status icon, container + route, status
+  /// chip, and a bottom line of contextual detail (ETA, duty, or progress).
   Widget _row(BuildContext context, Shipment s) {
     return SoftCard(
       onTap: () => widget.onOpen?.call(s),
@@ -183,6 +203,8 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
+                // left side: priority order is customs duty notice, then a
+                // delay reason, then falling back to a plain ETA string
                 s.bayanNumber != null
                     ? 'Bayan ${s.bayanNumber} · duty pending'
                     : s.eta.startsWith('Delayed')
@@ -191,6 +213,8 @@ class _ShipmentListScreenState extends State<ShipmentListScreen> {
                 style: const TextStyle(fontSize: 11, color: Color(0x66000000)),
               ),
               Text(
+                // right side: outstanding duty amount takes priority, else
+                // show route progress % while in transit, else nothing
                 s.dutyDueSar != null
                     ? 'SAR ${s.dutyDueSar!.toStringAsFixed(0)}'
                     : s.status == ShipmentStatus.inTransit

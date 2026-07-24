@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Provider/StateNotifierProvider machinery
+import '../../../../core/config/env.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/biometric_service.dart';
@@ -16,6 +17,9 @@ final biometricServiceProvider = Provider((ref) => BiometricService()); // singl
 final authRepositoryProvider = Provider((ref) => // wires the repository's two dependencies together
     AuthRepository(ref.read(dioClientProvider), ref.read(secureStorageProvider)));
 
+/// Snapshot of the app's sign-in status: whether a call is in flight, the
+/// current [User] (or lack of one), and any error to surface. Immutable —
+/// AuthNotifier replaces it wholesale via [copyWith] rather than mutating it.
 class AuthState {
   final bool isLoading; // true while a login/logout call is in flight — drives spinners/disabled buttons
   final User? user; // null when signed out, populated after a successful login
@@ -54,6 +58,9 @@ class AuthState {
   return (e.toString(), false);
 }
 
+// StateNotifier<AuthState>: holds a single `state` value (AuthState) and
+// notifies any widget watching authProvider to rebuild whenever `state` is
+// reassigned — that's what every `state = state.copyWith(...)` line below does.
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository; // performs the actual network/storage work
   final BiometricService _biometricService; // checks/performs biometric authentication
@@ -66,6 +73,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
     bool rememberMe = false,
   }) async {
     state = state.copyWith(isLoading: true, error: null); // clear any previous error before retrying
+
+    if (Env.debugLoginBypass) {
+      // Bypass real authentication for local/demo flows when explicitly enabled.
+      await Future.delayed(const Duration(milliseconds: 150));
+      state = state.copyWith(
+        isLoading: false,
+        user: User(
+          id: userId,
+          name: userId.isNotEmpty ? userId : 'Demo User',
+          groupId: 'default',
+          empCode: '0000',
+          description: 'Authenticated User',
+        ),
+      );
+      return;
+    }
+
     try {
       final user = await _repository.login(
         userId: userId,

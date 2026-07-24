@@ -9,25 +9,28 @@ import '../../../shipments/presentation/screens/shipment_detail_screen.dart';
 import '../../../shipments/presentation/widgets/shipment_widgets.dart';
 
 /// Operations dashboard — KPI grid + active containers, matching mockup 3a.
-class HomeScreen extends ConsumerWidget {
-  final List<Shipment> shipments;
+class HomeScreen extends ConsumerWidget { // ConsumerWidget gives build() a WidgetRef so it can read Riverpod providers (see authProvider below)
+  final List<Shipment> shipments; // defaults to empty; the caller (router/tests) supplies real data
   const HomeScreen({super.key, this.shipments = const []});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).user;
+    final user = ref.watch(authProvider).user; // ref.watch subscribes — screen rebuilds if the signed-in user changes
 
+    // Pushes the shipment detail screen on top of the current one (not a named
+    // route — this screen already lives inside the router's ShellRoute).
     void openShipment(Shipment s) => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => ShipmentDetailScreen(shipment: s)),
         );
 
-    return ListView(
+    return ListView( // scrollable column — lets the dashboard grow past one screen height without overflowing
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
         _header(context, user?.name),
         const SizedBox(height: 20),
         _kpiGrid(),
         const SizedBox(height: 20),
+        // "Active containers" section heading + "View all" link
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -41,6 +44,8 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 12),
+        // Active containers list: an empty-state message when there's nothing
+        // to show, otherwise up to 2 container cards (the rest live behind "View all").
         if (shipments.isEmpty)
           Text('No active containers',
               style: TextStyle(
@@ -50,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
                       .onSurface
                       .withValues(alpha: 0.45)))
         else
-          for (final s in shipments.take(2)) ...[
+          for (final s in shipments.take(2)) ...[ // spread (...) splices this loop's widgets directly into the outer children list
             _containerCard(context, s, openShipment),
             const SizedBox(height: 12),
           ],
@@ -58,6 +63,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  /// Greeting + user name on the left, notification bell and avatar initials on the right.
   Widget _header(BuildContext context, String? userName) {
     return Row(
       children: [
@@ -78,8 +84,9 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
         ),
-        _iconButton(context, Icons.notifications_rounded, badge: true),
+        _iconButton(context, Icons.notifications_rounded, badge: true), // notification bell with an unread-badge dot
         const SizedBox(width: 10),
+        // avatar circle with initials
         Container(
           width: 44,
           height: 44,
@@ -89,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
-          child: Text(initialsOf(userName),
+          child: Text(initialsOf(userName), // e.g. "John Doe" -> "JD"
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -99,13 +106,15 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  /// A rounded icon button in a SoftCard shell, optionally showing a small
+  /// unread-notification dot in its corner.
   Widget _iconButton(BuildContext context, IconData icon,
       {bool badge = false}) {
     return SoftCard(
       radius: 16,
       padding: const EdgeInsets.all(11),
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Stack( // Stack layers the badge dot on top of the icon instead of pushing it beside it
+        clipBehavior: Clip.none, // lets the badge poke slightly outside the Stack's bounds without being clipped
         children: [
           Icon(icon,
               size: 21,
@@ -113,8 +122,9 @@ class HomeScreen extends ConsumerWidget {
                   .colorScheme
                   .onSurface
                   .withValues(alpha: 0.65)),
+          // notification badge dot
           if (badge)
-            Positioned(
+            Positioned( // Positioned pins a Stack child to specific offsets from its edges
               right: -1,
               top: -1,
               child: Container(
@@ -124,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
                   color: AppColors.error,
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: Theme.of(context).scaffoldBackgroundColor, // matches the page background so the dot looks "cut out" of the icon
                       width: 1.5),
                 ),
               ),
@@ -134,7 +144,10 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  /// 2-column grid of KPI stat cards (shipment counts by status).
   Widget _kpiGrid() {
+    // KPI stat cards data — values are hardcoded placeholders (all "0") until
+    // real aggregated shipment stats are wired up.
     const items = [
       (_Kpi('0', 'Active shipments', Icons.inventory_2_rounded,
           AppColors.accent)),
@@ -144,17 +157,18 @@ class HomeScreen extends ConsumerWidget {
       (_Kpi('0', 'Delivered today', Icons.task_alt_rounded,
           AppColors.success)),
     ];
-    return GridView.count(
+    return GridView.count( // GridView.count lays children out in a fixed number of columns (crossAxisCount)
       crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true, // sizes the grid to fit its children instead of expanding to fill available space
+      physics: const NeverScrollableScrollPhysics(), // grid itself doesn't scroll — it's inside the outer ListView, which does
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.55,
+      childAspectRatio: 1.55, // width:height ratio tuned so each card is short and wide, matching the mockup
       children: [for (final k in items) _kpiCard(k)],
     );
   }
 
+  /// One KPI card: a large value + icon on top, label underneath.
   Widget _kpiCard(_Kpi k) {
     return SoftCard(
       padding: const EdgeInsets.all(16),
@@ -175,12 +189,14 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 2),
           Text(k.label,
-              style: const TextStyle(fontSize: 12, color: Color(0x80000000))),
+              style: const TextStyle(fontSize: 12, color: Color(0x80000000))), // 50% black — muted label text
         ],
       ),
     );
   }
 
+  /// Card summarizing one shipment: status icon, container/cargo, status
+  /// chip, route progress bar, and ETA/progress footer. Tapping it opens detail.
   Widget _containerCard(
       BuildContext context, Shipment s, void Function(Shipment) onOpen) {
     return SoftCard(
@@ -191,6 +207,7 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
+              // status icon tile (color keyed to the shipment's status)
               Container(
                 width: 38,
                 height: 38,
@@ -214,17 +231,18 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              StatusChip(status: s.status),
+              StatusChip(status: s.status), // small pill label (e.g. "In transit") — defined in shipment_widgets.dart
             ],
           ),
           const SizedBox(height: 14),
-          RouteProgress(
+          RouteProgress( // origin -> destination progress bar, color-matched to the shipment status
             origin: s.origin,
             destination: s.destination,
             progress: s.progress,
             color: s.status.color,
           ),
           const SizedBox(height: 8),
+          // footer: ETA on the left, either "Duty pending" or a percent-complete label on the right
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -233,7 +251,7 @@ class HomeScreen extends ConsumerWidget {
                       const TextStyle(fontSize: 11, color: Color(0x66000000))),
               Text(
                 s.dutyDueSar != null
-                    ? 'Duty pending'
+                    ? 'Duty pending' // outstanding customs duty takes priority over showing raw progress
                     : '${(s.progress * 100).round()}%',
                 style:
                     const TextStyle(fontSize: 11, color: Color(0x66000000)),
@@ -246,10 +264,11 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+/// Plain data holder for one KPI card's display values — not a widget itself.
 class _Kpi {
-  final String value;
-  final String label;
+  final String value; // headline number/stat, e.g. '0'
+  final String label; // caption describing what the value means
   final IconData icon;
-  final Color accent;
+  final Color accent; // color applied to both the value text and icon
   const _Kpi(this.value, this.label, this.icon, this.accent);
 }

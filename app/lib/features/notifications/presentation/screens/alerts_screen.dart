@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/soft_card.dart';
 
+/// A single alert/notification entry rendered by [AlertsScreen].
 class AppNotification {
-  final IconData icon;
-  final Color color;
+  final IconData icon; // icon shown in the leading badge, color-tinted by [color]
+  final Color color; // accent color for the icon badge and (if highlighted) card border
   final String title;
   final String body;
-  final String time;
+  final String time; // display-ready timestamp string, e.g. "2h ago"
   final bool highlight; // draws attention (e.g. duty due)
-  final List<String> actions;
+  final List<String> actions; // action button labels, e.g. ["Pay now", "Dismiss"]; first is the primary action
 
   const AppNotification({
     required this.icon,
@@ -32,6 +33,7 @@ class AlertsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // title row: "Alerts" heading + "Mark all read" action
         const Padding(
           padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
           child: Row(
@@ -47,9 +49,12 @@ class AlertsScreen extends StatelessWidget {
             ],
           ),
         ),
+        // category filter pills row (static/visual only — none are wired to filter the list below)
         SizedBox(
           height: 58,
           child: ListView(
+            // plain ListView here (not .separated) — spacing between pills
+            // comes from each _FilterPill's own right margin instead.
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
             children: const [
@@ -60,6 +65,7 @@ class AlertsScreen extends StatelessWidget {
             ],
           ),
         ),
+        // notification cards, or an empty-state message
         Expanded(
           child: notifications.isEmpty
               ? Center(
@@ -80,6 +86,9 @@ class AlertsScreen extends StatelessWidget {
     );
   }
 
+  /// One notification card: icon badge, title/body, optional action
+  /// buttons, and a timestamp — styled as an emphasized bordered box when
+  /// [AppNotification.highlight] is true, or a plain card otherwise.
   Widget _card(BuildContext context, AppNotification n) {
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,6 +134,8 @@ class AlertsScreen extends StatelessWidget {
       ],
     );
 
+    // the same `content` row is wrapped differently depending on highlight:
+    // a tinted, bordered Container for highlighted alerts, or a plain SoftCard otherwise
     if (n.highlight) {
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -147,6 +158,8 @@ class AlertsScreen extends StatelessWidget {
     );
   }
 
+  /// Small pill button for a notification's action list (e.g. "Pay now").
+  /// The first action in the list is rendered as [primary].
   Widget _actionBtn(String label, {bool primary = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -169,9 +182,13 @@ class AlertsScreen extends StatelessWidget {
   }
 }
 
+/// A category filter pill shown in the horizontal row above the alert list
+/// (currently display-only — tapping doesn't filter the notifications).
 class _FilterPill extends StatelessWidget {
   final String label;
   final bool selected;
+  // `this.label` is a plain (positional) constructor parameter, while
+  // `selected` is wrapped in {} making it an optional named parameter.
   const _FilterPill(this.label, {this.selected = false});
 
   @override

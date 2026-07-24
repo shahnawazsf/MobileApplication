@@ -1,5 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Keychain/Keystore-backed storage, not plain prefs
 
+/// Thin wrapper around the platform's encrypted storage (Keychain on iOS,
+/// Keystore on Android, etc.) for the two small values the app needs to
+/// persist across restarts: the bearer token and the remember-me flag.
 class SecureStorage {
   final _storage = const FlutterSecureStorage(); // one instance per SecureStorage, wraps the platform secure store
   static const _tokenKey = 'auth_token'; // key the bearer token is stored under

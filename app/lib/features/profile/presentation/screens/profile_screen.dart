@@ -10,8 +10,13 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  // ConsumerWidget (Riverpod): like StatelessWidget, but build() also
+  // receives a WidgetRef used to read/watch providers — app-wide state
+  // managed outside this widget, such as the logged-in user.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // watch() subscribes this widget to authProvider — the screen rebuilds
+    // automatically whenever the signed-in user's data changes.
     final user = ref.watch(authProvider).user;
 
     return ListView(
@@ -20,6 +25,7 @@ class ProfileScreen extends ConsumerWidget {
         const Text('Profile',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
         const SizedBox(height: 20),
+        // identity card: avatar with initials, name, description
         SoftCard(
           radius: 24,
           child: Row(
@@ -33,7 +39,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  initialsOf(user?.name),
+                  initialsOf(user?.name), // derives "JS"-style initials from the full name
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -58,6 +64,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 14),
+        // account details card: employee code, user group
         SoftCard(
           radius: 20,
           child: Column(
@@ -70,9 +77,12 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
+        // log out row
         SoftCard(
           radius: 20,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          // read() (not watch()) fetches the notifier once to call a method
+          // on it — used for one-off actions rather than rebuilding on change.
           onTap: () => ref.read(authProvider.notifier).logout(),
           child: Row(
             children: [
@@ -90,6 +100,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  /// A label/value pair used for the account-details rows (employee code,
+  /// user group).
   Widget _infoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

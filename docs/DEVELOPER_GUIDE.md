@@ -162,7 +162,10 @@ lib/
 └── features/
     ├── auth/
     ├── home/
-    └── shell/
+    ├── shell/
+    ├── shipments/
+    ├── notifications/
+    └── profile/
 ```
 
 #### `lib/main.dart` — the entry point
@@ -297,7 +300,7 @@ identifier (see the JSON sample in `DEVELOPMENT.md` §7.2) — so
 `User.id` itself. This is exactly the kind of backend quirk the `data/`
 layer exists to absorb, so `domain/User` stays clean.
 
-##### `features/home/` — the post-login landing screen
+##### `features/home/` — the post-login dashboard
 
 ```
 home/
@@ -305,12 +308,19 @@ home/
     └── screens/home_screen.dart   # dashboard body content — no Scaffold/AppBar of its own (see shell/ below)
 ```
 
-Currently a placeholder ("Welcome, {name}") — replace with the real
-dashboard content as it's designed.
+`HomeScreen` is a `ConsumerWidget` that `ref.watch`es `authProvider` just
+for the greeting name. It renders a fixed `ListView`: a header (greeting +
+gradient-avatar initials, via `core/utils/initials.dart`), a 2×2 KPI
+`GridView` (active shipments / in transit / at customs / delivered today —
+currently hardcoded `'0'` placeholders, not yet wired to a real summary
+endpoint), and up to two "active container" cards. The `shipments` list it
+renders is a constructor parameter, not fetched by the screen itself — see
+`features/shipments/` below for where that data belongs once a real API
+exists.
 
 ##### `features/shell/` — the persistent post-login navigation chrome
 
-Added to give every authenticated screen a consistent side menu + top bar,
+Added to give every authenticated screen a consistent header/navigation,
 instead of each screen building its own `Scaffold`/`AppBar`/logout button.
 See [`docs/plans/premium-navigation-side-menu.md`](plans/premium-navigation-side-menu.md)
 for the design rationale.
@@ -318,19 +328,87 @@ for the design rationale.
 ```
 shell/
 └── presentation/
-    ├── nav_items.dart              # NavItem{icon, label, path} list — single source of truth for the menu
-    ├── screens/app_shell.dart      # responsive frame: side rail (wide) or Drawer (narrow) + AnimatedSwitcher body
-    └── widgets/premium_side_menu.dart  # the glassmorphic menu itself: avatar header, nav list, logout
+    ├── nav_items.dart                    # NavItem{icon, selectedIcon, label, path} list — single source of truth for the menu
+    ├── screens/app_shell.dart            # responsive frame: side rail (≥900px) or bottom nav bar (narrow) + AnimatedSwitcher body
+    └── widgets/
+        ├── premium_side_menu.dart        # wide-layout glassmorphic side rail: avatar header, nav list, logout
+        └── bottom_nav_bar.dart           # narrow-layout bottom bar with a centered scan FAB (opens ScanScreen)
 ```
 
-How it plugs into routing: `app_router.dart` wraps `/home` (and any future
-authenticated route) in a `ShellRoute`, whose `builder` returns
+`AppShell` picks between the two nav widgets at a single breakpoint
+(`_wideBreakpoint = 900.0`, checked via `MediaQuery.sizeOf(context).width`)
+rather than using two separate routes — so resizing a window (e.g. on
+Windows/web) swaps the chrome live without losing navigation state.
+
+How it plugs into routing: `app_router.dart` wraps `/home` (and every
+other authenticated route) in a `ShellRoute`, whose `builder` returns
 `AppShell(child: <the matched screen>)`. That means `AppShell` — and
-therefore the side menu — stays mounted across navigation between
-authenticated screens, instead of being torn down and rebuilt each time
-(which would replay its entrance animation and reset Drawer state on every
-tap). `/login` is deliberately **outside** the `ShellRoute` since it has
-its own full-screen layout.
+therefore the side menu / bottom bar — stays mounted across navigation
+between authenticated screens, instead of being torn down and rebuilt each
+time (which would replay its entrance animation and reset nav state on
+every tap). `/login` is deliberately **outside** the `ShellRoute` since it
+has its own full-screen layout.
+
+##### `features/shipments/` — container tracking
+
+```
+shipments/
+├── domain/
+│   └── shipment.dart                        # ShipmentStatus enum + Shipment/JourneyStep entities
+└── presentation/
+    ├── screens/
+    │   ├── shipment_list_screen.dart         # searchable, filterable list (mockup 3b)
+    │   ├── shipment_detail_screen.dart       # vertical customs/journey timeline (mockup 3c)
+    │   └── scan_screen.dart                  # barcode/Bayan-QR scan UI (mockup 3e)
+    └── widgets/
+        └── shipment_widgets.dart             # StatusChip + RouteProgress, reused by list/home/detail screens
+```
+
+`Shipment` lives in `domain/`, not `data/` — there's no `data/` layer here
+yet because nothing calls a real backend for shipments. Every screen
+currently receives its `shipments` list as a constructor parameter
+supplied by whoever builds it (today: empty lists, wired up in
+`app_router.dart`). When a shipments API exists, add a
+`data/repositories/shipment_repository.dart` + a Riverpod provider,
+mirroring `features/auth/` exactly.
+
+`ShipmentStatus` is a good example of Dart **extension methods**: instead
+of a `switch` scattered across every widget that needs a status's label,
+color, or icon, `ShipmentStatusX` (in `shipment.dart`) attaches `.label`,
+`.color`, and `.icon` getters directly onto the enum, so call sites just
+write `s.status.color`.
+
+`ScanScreen`'s camera view (`_ScannerFrame`) is a **stubbed placeholder** —
+an animated gradient box with a sweeping scan-line, not a real camera feed.
+Wire in a plugin such as `mobile_scanner` when integrating an actual
+barcode/QR scanner.
+
+##### `features/notifications/` — alerts feed
+
+```
+notifications/
+└── presentation/
+    └── screens/alerts_screen.dart   # AppNotification model + list UI (mockup 3f)
+```
+
+`AppNotification` is defined directly inside `alerts_screen.dart` rather
+than under a `domain/` folder — like shipments, nothing populates it from
+a real backend yet. `AlertsScreen` takes a `notifications` list via its
+constructor, empty by default.
+
+##### `features/profile/` — signed-in account screen
+
+```
+profile/
+└── presentation/
+    └── screens/profile_screen.dart
+```
+
+Reads `authProvider`'s `user`, same as `home_screen.dart` and
+`premium_side_menu.dart`. This screen is the **only place to log out on
+the narrow/mobile layout** — `AppBottomNavBar` has no logout button, so on
+a phone-sized window `ProfileScreen`'s log-out row is the only way to sign
+out (on wide layouts, `PremiumSideMenu` also has one).
 
 ---
 
@@ -379,7 +457,37 @@ likely to ripple through.
 
 ---
 
-## 4. Conventions worth knowing before you write new code
+## 4. A second example: opening a shipment (no Riverpod, no go_router)
+
+Not everything routes through `go_router` or Riverpod — it's worth seeing
+the simpler pattern too, since most of `features/shipments/` and
+`features/notifications/` still use it today:
+
+1. `HomeScreen._containerCard` (or `ShipmentListScreen._row`) wraps a
+   `SoftCard` whose `onTap` calls a local `openShipment(Shipment s)`
+   closure defined right inside `build()`.
+2. That closure does a **plain, non-go_router** navigation:
+   `Navigator.of(context).push(MaterialPageRoute(builder: (_) =>
+   ShipmentDetailScreen(shipment: s)))`. `ShipmentDetailScreen` isn't a
+   route in `app_router.dart` at all — it's pushed directly on top of
+   whichever screen triggered it, and its own back arrow calls
+   `Navigator.of(context).maybePop()` to return.
+3. `ShipmentDetailScreen` is a plain `StatelessWidget` — no provider, no
+   `ref`. Every piece of data it renders (the `Shipment`, including its
+   `journey` list of `JourneyStep`s) was handed to it directly as a
+   constructor argument by whichever screen pushed it.
+
+**When to reach for this vs. a go_router route + provider:** use plain
+`Navigator.push` for a screen that's always opened *from* another specific
+screen with the data already in hand (a detail view, a modal-ish flow like
+`ScanScreen`). Reserve `go_router` routes for top-level, independently
+reachable destinations that the auth guard or deep links need to know
+about — every entry in `nav_items.dart` **is** a `go_router` route for
+exactly this reason.
+
+---
+
+## 5. Conventions worth knowing before you write new code
 
 - **Comments explain *why*, not *what*.** You'll see very few comments
   describing what a line does (the code + naming should already make that

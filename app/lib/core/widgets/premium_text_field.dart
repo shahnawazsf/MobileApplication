@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // FilteringTextInputFormatter
 
+/// Styled text input used throughout the auth flow (email, password, etc.) —
+/// wraps a plain `TextField` with this app's icon/label/error conventions so
+/// screens don't repeat the same InputDecoration boilerplate.
 class PremiumTextField extends StatelessWidget {
   final String label; // also doubles as the floating label via InputDecoration
   final IconData icon; // leading icon
@@ -31,7 +34,7 @@ class PremiumTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextField( // Flutter's built-in editable text input; this widget just configures it consistently
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,

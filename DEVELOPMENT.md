@@ -90,14 +90,39 @@ lib/
     │       │   └── login_form_provider.dart    # form field state + validation
     │       └── screens/
     │           └── login_screen.dart           # the premium login UI
-    └── home/
+    ├── home/
+    │   └── presentation/
+    │       └── screens/
+    │           └── home_screen.dart            # post-login KPI dashboard
+    ├── shell/
+    │   └── presentation/
+    │       ├── nav_items.dart                  # NavItem list — single source of truth for the menu
+    │       ├── screens/app_shell.dart           # responsive frame: side rail / bottom nav bar
+    │       └── widgets/
+    │           ├── premium_side_menu.dart       # wide-layout side rail
+    │           └── bottom_nav_bar.dart          # narrow-layout bottom bar + scan FAB
+    ├── shipments/
+    │   ├── domain/
+    │   │   └── shipment.dart                   # ShipmentStatus enum + Shipment/JourneyStep entities
+    │   └── presentation/
+    │       ├── screens/
+    │       │   ├── shipment_list_screen.dart
+    │       │   ├── shipment_detail_screen.dart
+    │       │   └── scan_screen.dart
+    │       └── widgets/shipment_widgets.dart    # StatusChip + RouteProgress
+    ├── notifications/
+    │   └── presentation/
+    │       └── screens/alerts_screen.dart       # AppNotification model + list UI
+    └── profile/
         └── presentation/
-            └── screens/
-                └── home_screen.dart            # placeholder post-login landing screen
+            └── screens/profile_screen.dart
 ```
 
-Every new feature (e.g. `profile`, `settings`) follows the same
-`data` / `domain` / `presentation` split as `auth`.
+Every new feature (e.g. a future `settings`) follows the same
+`data` / `domain` / `presentation` split as `auth`, even if `data`/`domain`
+start out empty — `home`, `shell`, `shipments`, `notifications`, and
+`profile` above are all at some earlier stage of that same split, since
+none of them call a real backend yet.
 
 ## 5. Dependencies
 
@@ -301,13 +326,77 @@ The "OR CONTINUE WITH" divider and the `SocialLoginButton` row are commented out
 `ref.listen(authProvider, ...)` drives snackbars for login errors and success —
 side effects live in `listen`, not in `build()`.
 
-## 8. Home feature (placeholder)
+## 8. Home dashboard feature
 
-`lib/features/home/presentation/screens/home_screen.dart` — shows the logged-in
-user's name and a logout button. This exists purely so the router has somewhere to
-send authenticated users; replace with the real post-login experience.
+`lib/features/home/presentation/screens/home_screen.dart` — `ConsumerWidget` that
+`ref.watch`es `authProvider` for the greeting name and renders a fixed `ListView`:
+header (greeting + gradient-avatar initials via `core/utils/initials.dart`), a 2×2
+KPI `GridView` (active shipments / in transit / at customs / delivered today — still
+hardcoded `'0'` placeholders, not wired to a real summary endpoint), and up to two
+"active container" cards built from a `shipments` list passed in via constructor
+(empty by default — see §10, this screen has no data source of its own).
 
-## 9. App entry point
+## 9. Shell / navigation feature
+
+`lib/features/shell/` gives every authenticated screen a consistent header and nav,
+instead of each screen building its own `Scaffold`/`AppBar`/logout button. See
+[`docs/plans/premium-navigation-side-menu.md`](docs/plans/premium-navigation-side-menu.md)
+for the original design rationale.
+
+- `nav_items.dart` — the single `List<NavItem>` (icon/selectedIcon/label/path) that
+  both nav widgets below render, and that must stay in sync with the routes declared
+  in `app_router.dart`.
+- `app_shell.dart` — `AppShell(child, currentPath)` picks between `PremiumSideMenu`
+  (width ≥ `_wideBreakpoint = 900.0`, via `MediaQuery.sizeOf(context).width`) and
+  `AppBottomNavBar` (narrower) at a single breakpoint, so resizing the window swaps
+  chrome live. Wrapped around every authenticated route by a `ShellRoute` in
+  `app_router.dart`, so it (and the side menu / bottom bar) stays mounted across
+  in-app navigation instead of rebuilding on every screen change.
+- `widgets/premium_side_menu.dart` — glassmorphic side rail: avatar header, nav list
+  (staggered `flutter_animate` entrance), logout tile pinned below a divider.
+- `widgets/bottom_nav_bar.dart` — glass bottom bar with a centered gradient scan FAB
+  (opens `ScanScreen`) between the first two and last two nav items.
+
+## 10. Shipments feature
+
+`lib/features/shipments/` — container/shipment tracking UI.
+
+- `domain/shipment.dart` — `ShipmentStatus` enum (`onVessel`/`atCustoms`/
+  `inTransit`/`delayed`/`delivered`) with an extension (`ShipmentStatusX`) providing
+  `.label`/`.color`/`.icon` getters, plus the `Shipment` and `JourneyStep` entities.
+  No `data/` layer yet — nothing calls a real shipments API, so every screen below
+  receives its data as a plain constructor parameter (empty lists today, supplied by
+  `app_router.dart`). Add `data/repositories/shipment_repository.dart` + a provider
+  here, mirroring `features/auth/`, once a backend endpoint exists.
+- `presentation/screens/shipment_list_screen.dart` — searchable/filterable list
+  (`StatefulWidget`, local `_filter` index into `['All', 'Ocean', 'Customs',
+  'Road']`), matching mockup 3b.
+- `presentation/screens/shipment_detail_screen.dart` — vertical customs/journey
+  timeline built from `Shipment.journey`, matching mockup 3c.
+- `presentation/screens/scan_screen.dart` — barcode/Bayan-QR scan UI, matching
+  mockup 3e. **The camera view (`_ScannerFrame`) is a stubbed placeholder** — an
+  animated gradient box with a sweeping scan-line, not a real camera feed. Wire in a
+  plugin such as `mobile_scanner` when integrating an actual scanner.
+- `presentation/widgets/shipment_widgets.dart` — `StatusChip` and `RouteProgress`,
+  shared by the home dashboard, list, and detail screens.
+
+## 11. Notifications feature
+
+`lib/features/notifications/presentation/screens/alerts_screen.dart` — alerts feed
+matching mockup 3f. `AppNotification` is defined inline in this file (no `domain/`
+folder yet, same reasoning as shipments). `AlertsScreen` takes a `notifications`
+list via constructor, empty by default; highlighted cards (`AppNotification.
+highlight`) get an accent-tinted border instead of the standard `SoftCard` look.
+
+## 12. Profile feature
+
+`lib/features/profile/presentation/screens/profile_screen.dart` — signed-in
+account screen (`ConsumerWidget` reading `authProvider`'s `user`): avatar/name/
+description, employee code + user group info rows, and a log-out row. This is the
+**only place to log out on the narrow/mobile layout**, since `AppBottomNavBar` has
+no logout button (wide layouts also have one in `PremiumSideMenu`).
+
+## 13. App entry point
 
 ### `lib/app.dart`
 
@@ -323,7 +412,7 @@ void main() {
 }
 ```
 
-## 10. Code generation and run
+## 14. Code generation and run
 
 `LoginResponseModel` needs generated `.freezed.dart`/`.g.dart` files before the app compiles:
 
@@ -346,7 +435,7 @@ Available run targets in this environment: Chrome, Edge, Windows desktop (no
 Android/iOS emulator configured yet — run `flutter emulators` to check on your
 machine).
 
-## 11. What this gives you
+## 15. What this gives you
 
 - A premium, glassmorphic login screen (gradient background, blurred glass card,
   floating-label fields, animated gradient CTA) calling `POST /api/Auth/login`.
@@ -362,15 +451,24 @@ machine).
   currently commented out on the screen, and explicitly not wired to real OAuth —
   calling `loginWithProvider` surfaces a clear "not configured" message instead of
   silently failing or faking success.
+- A responsive post-login shell (side rail ≥900px, bottom nav bar + scan FAB below)
+  wrapping a KPI dashboard, a shipments list/detail/scan flow, an alerts feed, and a
+  profile/logout screen — all currently rendering from empty/placeholder data,
+  ready to wire to real backend endpoints one feature at a time.
 - A repeatable pattern for every new feature: `data/models` (JSON mapping) →
   `domain/entities` (pure business objects) → `presentation` (Riverpod
-  provider(s) + screen).
+  provider(s) + screen) — `auth/` is the fully-wired reference; `shipments/`,
+  `notifications/`, and `profile/` show the same shape mid-build, UI first.
 
-## 12. Open items / next steps
+## 16. Open items / next steps
 
 - [x] Confirmed actual backend login response shape (flat, no `user` object, no
       `id`/`email`, nullable `token`) — `LoginResponseModel`/`AuthRepository`
       updated to match.
+- [x] Built out the authenticated app shell (responsive side rail / bottom nav bar)
+      and a real home dashboard (KPI grid + active containers).
+- [x] Added shipments (list/detail/scan), notifications, and profile screens —
+      currently UI-only, rendering empty/placeholder data (see §10–§12).
 - [ ] Backend doesn't issue a bearer token on login yet — once it does, confirm
       the field name (`LoginResponseModel.token` currently expects `"token"`) and
       remove the `if (loginResponse.token != null)` guard in `AuthRepository.login`.
@@ -383,7 +481,10 @@ machine).
 - [ ] Replace placeholder brand glyphs in `brand_glyphs.dart` with official logo
       assets before shipping.
 - [ ] Add registration feature (`Register` button currently a snackbar stub).
-- [ ] Build out the real home screen / authenticated app shell.
+- [ ] Add `data/` layers (repository + provider) for shipments and notifications,
+      replacing the empty/hardcoded lists currently passed into their screens.
+- [ ] Wire a real camera plugin (e.g. `mobile_scanner`) into `ScanScreen`'s
+      `_ScannerFrame`, currently a stubbed placeholder.
 - [ ] Set up flavors (dev/staging/prod) once staging/prod backend URLs exist.
 - [ ] Test biometric login on a real Android/iOS device or emulator (untestable on
       Chrome/Windows — `BiometricService.isSupportedPlatform` is `false` there).
