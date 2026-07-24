@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/animated_gradient_background.dart';
 // Unused while social login is hidden — see the commented-out block below.
 // import '../../../../core/widgets/brand_glyphs.dart';
+import '../../../../core/widgets/brand_logo.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../../core/widgets/premium_text_field.dart';
@@ -115,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min, // Column only takes as much height as its children need
                   children: [
-                    _Logo(),
+                    const BrandLogo(),
                     const SizedBox(height: 24),
                     Text(
                       'Welcome back',
@@ -309,32 +310,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
-  }
-}
-
-class _Logo extends StatelessWidget { // the circular gradient app-icon placeholder above the heading
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2563EB), Color(0xFF4F46E5)], // same brand blue/indigo pair as AppColors.primaryGradient
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
-            blurRadius: 30,
-            offset: const Offset(0, 12), // glow falls downward, matching the card's shadow direction
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Image.asset('assets/images/logo.png', fit: BoxFit.contain), // brand mark
-    ).animate().scaleXY(begin: 0.6, end: 1, duration: 500.ms, curve: Curves.easeOutBack); // pops in with a slight overshoot
   }
 }
